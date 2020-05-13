@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <cstring>
 #include "asm_x86.h"
 #include "asm_x64.h"
 
@@ -40,15 +41,11 @@ inline const char* getMallocCall(bool arch)
 {
 #ifdef __unix__
     if (arch)
-        return "\tcall\t__x64.get_pc_thunk.bx\n\
-                \taddl\t$_GLOBAL_OFFSET_TABLE_, %rbx\n\
-                \tcall\tmalloc@PLT";
+        return UNIX_MALLOC_x64;
     else
-        return "\tcall\t__x86.get_pc_thunk.bx\n\
-                \taddl\t$_GLOBAL_OFFSET_TABLE_, %ebx\n\
-                \tcall\tmalloc@PLT";
+        return UNIX_MALLOC_x86;
 #else
-    return "\tcall\t_malloc\n";
+    return WIN_MALLOC;
 #endif
 }
 
@@ -133,11 +130,6 @@ int main(int argc, char** argv)
     builtinFuncs.insert("__x86.get_pc_thunk.bx");
     builtinFuncs.insert("__x86.get_pc_thunk.dx");
     builtinFuncs.insert("__x86.get_pc_thunk.bp");
-    // Для x64
-    builtinFuncs.insert("__x64.get_pc_thunk.ax");
-    builtinFuncs.insert("__x64.get_pc_thunk.bx");
-    builtinFuncs.insert("__x64.get_pc_thunk.dx");
-    builtinFuncs.insert("__x64.get_pc_thunk.bp");
 #else
     // В MinGW таких функций нет
 #endif
@@ -153,6 +145,9 @@ int main(int argc, char** argv)
             if (!insertedSaveRet && line[0] != '\t')
             {
                 // Функцию save_ret следует поставить перед первой функцией первого файла
+#if 1
+                fout << UNIX_SAVE_RET_HEADER;
+#endif
                 fout << (arch ? SAVE_RET_x64 : SAVE_RET_x86);
                 insertedSaveRet = true;
             }

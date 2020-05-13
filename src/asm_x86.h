@@ -2,8 +2,9 @@
 
 // Код инициализации
 const char* INIT_x86 = "\
-\tmovl\t$0x%x, %%edx\n\
+\tpushl\t$0x%x\n\
 %s\
+\taddl\t$4, %%esp\n\
 \tmovl\t%%eax, %%edi\n\
 \tmovl\t$0, (%%eax)\n\
 ";
@@ -28,8 +29,19 @@ const char* RET_x86 = "\
 \tjmp\t\t*(%edi,%esi,4)\n\
 ";
 
+// Код вызова malloc() для UNIX x86
+const char* UNIX_MALLOC_x86 = "\
+\tcall\t__x86.get_pc_thunk.bx\n\
+\taddl\t$_GLOBAL_OFFSET_TABLE_, %ebx\n\
+\tcall\tmalloc@PLT\n";
+
+// Код вызова malloc() для Windows
+const char* WIN_MALLOC = "\tcall\t_malloc\n";
+
 // Код функции save_ret
 const char* SAVE_RET_x86 = "\
+.LB:\n\
+\t.text\n\
 save_ret:\n\
 \tpushl\t%eax\n\
 \tmovl\t0x4(%esp), %eax\n\

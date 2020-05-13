@@ -2,8 +2,9 @@
 
 // Код инициализации
 const char* INIT_x64 = "\
-\tmovq\t$0x%x, %%rdx\n\
+\tpushq\t$0x%x\n\
 %s\
+\taddq\t$4, %%rsp\n\
 \tmovq\t%%rax, %%rdi\n\
 \tmovq\t$0, (%%rax)\n\
 ";
@@ -27,6 +28,9 @@ const char* RET_x64 = "\
 \tsubq\t$0x4, %rsp\n\
 \tjmp\t\t*(%rdi,%rsi,4)\n\
 ";
+
+// Код вызова malloc() для UNIX x64
+const char* UNIX_MALLOC_x64 = "\tcall\tmalloc@PLT\n";
 
 // Код функции save_ret
 const char* SAVE_RET_x64 = "\
