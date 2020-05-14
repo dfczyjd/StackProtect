@@ -25,7 +25,7 @@ const char* RET_x86 = "\
 \tdecl\t%esi\n\
 \tmovl\t%esi, (%edi)\n\
 \tincl\t%esi\n\
-\tsubl\t$0x4, %esp\n\
+\taddl\t$0x4, %esp\n\
 \tjmp\t\t*(%edi,%esi,4)\n\
 ";
 
@@ -40,7 +40,6 @@ const char* WIN_MALLOC = "\tcall\t_malloc\n";
 
 // Код функции save_ret
 const char* SAVE_RET_x86 = "\
-.LB:\n\
 \t.text\n\
 save_ret:\n\
 \tpushl\t%eax\n\

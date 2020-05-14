@@ -1,3 +1,6 @@
+// Необходимо для совместимости с GCC, где не определены safe-версии функций
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -8,6 +11,13 @@
 #include "asm_x64.h"
 
 using namespace std;
+
+// Архитектура обрабатываемых файлов
+enum Arch
+{
+    X86,    // 32-битная
+    X64     // 64-битная
+};
 
 bool startswith(const string& line, const string& prefix)
 {
@@ -49,14 +59,14 @@ inline const char* getMallocCall(bool arch)
 #endif
 }
 
-bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize)
+bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize, Arch& arch)
 {
+    // Тип следующего аргумента
     enum ArgType
     {
-        IN_FILE, STACK_SIZE
-    };
-
-    ArgType next = IN_FILE;
+        IN_FILE,        // Имя входного файла или имя опции
+        STACK_SIZE,     // Размер стека
+    } next = IN_FILE;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -70,6 +80,10 @@ bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize)
         }
         else if (!strcmp(argv[i], "-s"))
             next = STACK_SIZE;
+        else if (!strcmp(argv[i], "-x86"))
+            arch = X86;
+        else if (!strcmp(argv[i], "-x64"))
+            arch = X64;
         else
             inFiles.push_back(argv[i]);
     }
@@ -86,8 +100,9 @@ int main(int argc, char** argv)
 
     vector<string> inFiles;
     int stackSize = 0x1000;
+    Arch arch = X64;
 
-    if (!parseArgs(argc, argv, inFiles, stackSize))
+    if (!parseArgs(argc, argv, inFiles, stackSize, arch))
     {
         cout << "Error: Incorrect argument\n";
         return 2;
@@ -98,8 +113,6 @@ int main(int argc, char** argv)
         cout << "Error: No input files\n";
         return 1;
     }
-
-    bool arch = 0;
 
     unordered_set<string> funcs;
     vector< vector<string>> fileLines;
@@ -145,10 +158,7 @@ int main(int argc, char** argv)
             if (!insertedSaveRet && line[0] != '\t')
             {
                 // Функцию save_ret следует поставить перед первой функцией первого файла
-#if 1
-                fout << UNIX_SAVE_RET_HEADER;
-#endif
-                fout << (arch ? SAVE_RET_x64 : SAVE_RET_x86);
+                fout << (arch == X64 ? SAVE_RET_x64 : SAVE_RET_x86);
                 insertedSaveRet = true;
             }
             if (isFuncName(line))
@@ -173,7 +183,7 @@ int main(int argc, char** argv)
                     {
                         // В начале main необходимо выполнить инициализацию
                         char inserted[256];
-                        sprintf_s(inserted, arch ? INIT_x64 : INIT_x86, stackSize, getMallocCall(arch));
+                        sprintf(inserted, arch == X64 ? INIT_x64 : INIT_x86, stackSize, getMallocCall(arch));
                         fout << line << endl << inserted;
                         continue;
                     }
@@ -185,7 +195,7 @@ int main(int argc, char** argv)
                 string funcName = line.substr(sizeof("\tcall\t") - 1);
                 if (funcs.count(funcName) && !builtinFuncs.count(funcName))
                 {
-                    fout << (arch ? CALL_x64 : CALL_x86) << funcName << endl;
+                    fout << (arch == X64 ? CALL_x64 : CALL_x86) << funcName << endl;
                     continue;
                 }
             }
@@ -194,7 +204,7 @@ int main(int argc, char** argv)
                 // Инструкция ret
                 if (funcs.count(currFunc) && !builtinFuncs.count(currFunc) && !isMainName(currFunc))
                 {
-                    fout << (arch ? RET_x64 : RET_x86);
+                    fout << (arch == X64 ? RET_x64 : RET_x86);
                     continue;
                 }
             }
