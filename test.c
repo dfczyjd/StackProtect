@@ -1,17 +1,19 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
 
-int bar(char* s)
+void foo(char* arg)
 {
-    return printf("From bar: %s\n", s);
+    char buf[20];
+    strcpy(buf, arg);
+    printf("Copied string is %s\n", buf);
 }
 
-void foo()
+int main(int argc, char** argv)
 {
-    printf("And from foo: %d\n", bar("test"));
-}
-
-int main()
-{
-    foo();
+    if (argc < 2)
+    {
+        puts("Missing argument");
+        return -1;
+    }
+    foo(argv[1]);
 }

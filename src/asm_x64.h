@@ -15,7 +15,7 @@ const char* CALL_x64 = "\
 \tincq\t%r14\n\
 \tmovq\t%r14, (%r15)\n\
 \tpushq\t$0\n\
-\tmovq\t%rip, (%r15, %r14, 8)\n\
+\tmovq\t%rip, (%r15,%r14,8)\n\
 \tjmp\t\t\
 ";
 
@@ -26,7 +26,7 @@ const char* RET_x64 = "\
 \tmovq\t%r14, (%r15)\n\
 \tincq\t%r14\n\
 \taddq\t$0x8, %rsp\n\
-\tjmp\t\t*(%r15,%r14,4)\n\
+\tjmp\t\t*(%r15,%r14,8)\n\
 ";
 
 // Код вызова malloc() для UNIX x64
@@ -39,7 +39,7 @@ save_ret:\n\
 \tpushq\t%rax\n\
 \tmovq\t0x8(%rsp), %rax\n\
 \taddq\t$0x5, %rax\n\
-\tmovq\t%rax, (%r15, %r14, 8)\n\
+\tcall\tsave_ret\n\
 \tpopq\t%rax\n\
 \tret\n\
 ";

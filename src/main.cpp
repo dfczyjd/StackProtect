@@ -19,6 +19,7 @@ enum Arch
     X64     // 64-битная
 };
 
+// Проверка того, что строка начинается с указанного префикса
 bool startswith(const string& line, const string& prefix)
 {
     if (line.size() < prefix.size())
@@ -29,6 +30,7 @@ bool startswith(const string& line, const string& prefix)
     return true;
 }
 
+// Является ли строка именем функции на данной архитектуре
 bool isFuncName(const string& line)
 {
 #ifdef __unix__
@@ -38,6 +40,7 @@ bool isFuncName(const string& line)
 #endif
 }
 
+// Является ли имя функции main-ом на данной архитектуре
 bool isMainName(const string& name)
 {
 #ifdef __unix__
@@ -47,6 +50,7 @@ bool isMainName(const string& name)
 #endif
 }
 
+// Получить вызов malloc() для данной архитектуры
 inline const char* getMallocCall(bool arch)
 {
 #ifdef __unix__
@@ -59,6 +63,8 @@ inline const char* getMallocCall(bool arch)
 #endif
 }
 
+// Извлекает аргументы из командной строки
+// Возвращает true, если аргументы корректны, false в противном случае
 bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize, Arch& arch)
 {
     // Тип следующего аргумента
@@ -90,33 +96,12 @@ bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize, A
     return true;
 }
 
-int main(int argc, char** argv)
+// Считывает построчно файлы из files в массив fileLines и сохраняет все имена функций в funcs
+void parseFiles(const vector<string>& files,
+                unordered_set<string>& funcs,
+                vector<vector<string>>& fileLines)
 {
-    if (argc <= 1)
-    {
-        cout << "Error: No input files\n";
-        return 1;
-    }
-
-    vector<string> inFiles;
-    int stackSize = 0x1000;
-    Arch arch = X64;
-
-    if (!parseArgs(argc, argv, inFiles, stackSize, arch))
-    {
-        cout << "Error: Incorrect argument\n";
-        return 2;
-    }
-
-    if (inFiles.empty())
-    {
-        cout << "Error: No input files\n";
-        return 1;
-    }
-
-    unordered_set<string> funcs;
-    vector< vector<string>> fileLines;
-    for (string& file : inFiles)
+    for (const string& file : files)
     {
         vector<string> lines;
         ifstream fin(file);
@@ -134,7 +119,14 @@ int main(int argc, char** argv)
         fin.close();
         fileLines.push_back(lines);
     }
+}
 
+// Обрабатывает строки файлов из fileLines с указанными размером стека вызовом и архитектурой
+void processFiles(const vector<string> &files,
+                const vector<vector<string>>& fileLines,
+                const unordered_set<string>& funcs,
+                int stackSize, Arch& arch)
+{
     // Функции, которые есть в .s файле, но генерируются компилятором. В защите не нуждаются.
     unordered_set<string> builtinFuncs;
 #ifdef __unix__
@@ -150,7 +142,7 @@ int main(int argc, char** argv)
     bool insertedSaveRet = false;
     for (int i = 0; i < fileLines.size(); ++i)
     {
-        ofstream fout(inFiles[i]);
+        ofstream fout(files[i]);
         string currFunc = "";
         bool wasNoTabLine = true; // Конец функции - вторая строка без \t в начале после неё
         for (string line : fileLines[i])
@@ -212,5 +204,36 @@ int main(int argc, char** argv)
         }
         fout.close();
     }
+}
+
+int main(int argc, char** argv)
+{
+    if (argc <= 1)
+    {
+        cout << "Error: No input files\n";
+        return 1;
+    }
+
+    vector<string> inFiles;
+    int stackSize = 0x10000;
+    Arch arch = X64;
+
+    if (!parseArgs(argc, argv, inFiles, stackSize, arch))
+    {
+        cout << "Error: Incorrect argument\n";
+        return 2;
+    }
+
+    if (inFiles.empty())
+    {
+        cout << "Error: No input files\n";
+        return 1;
+    }
+
+    unordered_set<string> funcs;
+    vector<vector<string>> fileLines;
+    parseFiles(inFiles, funcs, fileLines);
+    processFiles(inFiles, fileLines, funcs, stackSize, arch);
+    
     return 0;
 }

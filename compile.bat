@@ -1,3 +1,3 @@
-gcc -S %1 -o input.s
-protect.exe input.s
-gcc output.s
+gcc -S -fno-stack-protector %1 -o input.s
+protect.exe -x86 input.s
+gcc input.s
