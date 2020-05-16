@@ -63,9 +63,19 @@ inline const char* getMallocCall(bool arch)
 #endif
 }
 
-// Извлекает аргументы из командной строки
-// Возвращает true, если аргументы корректны, false в противном случае
-bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize, Arch& arch)
+// Результат обработки аргументов командной строки
+enum ArgError
+{
+    OK,                 // Аргументы корректны
+    DUPL_STACK_SIZE,    // Флаг -s дублируется
+    DUPL_x86,           // Флаг -x86 дублируется
+    DUPL_x64,           // Флаг -x64 дублируется
+    TWO_ARCH,           // Указано несколько архитектур
+    STACK_SIZE_NOT_NUM  // Размер стека не является числом
+};
+
+//Извлекает аргументы из командной строки
+ArgError parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize, Arch& arch)
 {
     // Тип следующего аргумента
     enum ArgType
@@ -74,6 +84,7 @@ bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize, A
         STACK_SIZE,     // Размер стека
     } next = IN_FILE;
 
+    bool usedStackSize = false, usedArch = false;
     for (int i = 1; i < argc; ++i)
     {
         if (next == STACK_SIZE)
@@ -81,19 +92,34 @@ bool parseArgs(int argc, char** argv, vector<string>& inFiles, int& stackSize, A
             char* numberEnd;
             stackSize = strtol(argv[i], &numberEnd, 10);
             if ((numberEnd - argv[i]) < strlen(argv[i]))
-                return false;
+                return STACK_SIZE_NOT_NUM;
             next = IN_FILE;
         }
         else if (!strcmp(argv[i], "-s"))
+        {
+            if (usedStackSize)
+                return DUPL_STACK_SIZE;
+            usedStackSize = true;
             next = STACK_SIZE;
+        }
         else if (!strcmp(argv[i], "-x86"))
+        {
+            if (usedArch)
+                return arch == X64 ? TWO_ARCH : DUPL_x86;
             arch = X86;
+            usedArch = true;
+        }
         else if (!strcmp(argv[i], "-x64"))
+        {
+            if (usedArch)
+                return arch == X86 ? TWO_ARCH : DUPL_x64;
             arch = X64;
+            usedArch = true;
+        }
         else
             inFiles.push_back(argv[i]);
     }
-    return true;
+    return OK;
 }
 
 // Считывает построчно файлы из files в массив fileLines и сохраняет все имена функций в funcs
@@ -211,23 +237,48 @@ int main(int argc, char** argv)
     if (argc <= 1)
     {
         cout << "Error: No input files\n";
-        return 1;
+        return -1;
     }
 
     vector<string> inFiles;
     int stackSize = 0x10000;
     Arch arch = X64;
 
-    if (!parseArgs(argc, argv, inFiles, stackSize, arch))
+    ArgError parseResult = parseArgs(argc, argv, inFiles, stackSize, arch);
+
+    switch (parseResult)
     {
-        cout << "Error: Incorrect argument\n";
-        return 2;
+    case DUPL_STACK_SIZE:
+        cerr << "Error: Key -s is used more than once\n";
+        return -1;
+
+    case DUPL_x86:
+        cerr << "Error: Key -x86 is used more than once\n";
+        return -1;
+
+    case DUPL_x64:
+        cerr << "Error: Key -x64 is used more than once\n";
+        return -1;
+
+    case TWO_ARCH:
+        cerr << "Error: More than one architectureis specified\n";
+        return -1;
+
+    case STACK_SIZE_NOT_NUM:
+        cerr << "Error: Call stack size must be a natural number\n";
+        return -1;
+    }
+
+    if (stackSize <= 0)
+    {
+        cerr << "Error: Call stack size must be a natural number\n";
+        return -1;
     }
 
     if (inFiles.empty())
     {
-        cout << "Error: No input files\n";
-        return 1;
+        cerr << "Error: No input files\n";
+        return -1;
     }
 
     unordered_set<string> funcs;
