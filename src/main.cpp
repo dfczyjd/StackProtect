@@ -131,6 +131,11 @@ void parseFiles(const vector<string>& files,
     {
         vector<string> lines;
         ifstream fin(file);
+        if (!fin.is_open())
+        {
+            cerr << "Error: Cannot open file " << file << '\n';
+            exit(-1);
+        }
         string line;
         while (getline(fin, line))
         {
@@ -169,6 +174,11 @@ void processFiles(const vector<string> &files,
     for (int i = 0; i < fileLines.size(); ++i)
     {
         ofstream fout(files[i]);
+        if (!fout.is_open())
+        {
+            cerr << "Error: Cannot open file " << files[i] << '\n';
+            exit(-1);
+        }
         string currFunc = "";
         bool wasNoTabLine = true; // Конец функции - вторая строка без \t в начале после неё
         for (string line : fileLines[i])
@@ -285,6 +295,5 @@ int main(int argc, char** argv)
     vector<vector<string>> fileLines;
     parseFiles(inFiles, funcs, fileLines);
     processFiles(inFiles, fileLines, funcs, stackSize, arch);
-    
     return 0;
 }
